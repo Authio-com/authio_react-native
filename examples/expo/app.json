@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "Authio Example",
+    "slug": "authio-rn-example",
+    "version": "0.0.1",
+    "scheme": "authioexample",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": false,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.authio.example",
+      "associatedDomains": [
+        "applinks:auth.authio.com",
+        "webcredentials:auth.authio.com"
+      ]
+    },
+    "android": {
+      "package": "com.authio.example",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [{ "scheme": "authioexample" }],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
+    },
+    "plugins": ["expo-router"]
+  }
+}
