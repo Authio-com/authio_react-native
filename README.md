@@ -44,7 +44,7 @@ export default function App() {
   return (
     <AuthioProvider
       publishableKey={process.env.EXPO_PUBLIC_AUTHIO_PUBLISHABLE_KEY!}
-      apiUrl="https://api.authio.com"
+      apiUrl="https://identity.authio.com"
     >
       <RootStack />
     </AuthioProvider>
