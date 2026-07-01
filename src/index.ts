@@ -44,3 +44,11 @@ export type {
 // Re-exports of helpers customers sometimes want to call directly
 // (e.g. handling deep links outside the provider).
 export { extractQueryParam, extractTokenFromUrl } from "./magic-link";
+
+export {
+  collectDeviceSignals,
+  encodeDeviceSignalsHeader,
+  deviceSignalsRequestFields,
+  DEVICE_SIGNALS_HEADER,
+} from "./device-signals";
+export type { DeviceSignalsCapture } from "./device-signals";

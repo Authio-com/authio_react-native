@@ -8,6 +8,7 @@
 
 import type { HTTPClient } from "./http";
 import { AuthioError, AuthioErrorCode } from "./errors";
+import { collectDeviceSignals, deviceSignalsRequestFields } from "./device-signals";
 import { decodeEnvelope, type DecodedEnvelope } from "./wire";
 import type { SessionEnvelopeWire } from "./types";
 
@@ -136,13 +137,16 @@ export async function signUpWithPasskey(
 
   const credential = await createCredentialWithCancelHandling(options);
 
+  const deviceFields = deviceSignalsRequestFields(await collectDeviceSignals());
   const env = await http.send<SessionEnvelopeWire>({
     method: "POST",
     path: "/v1/auth/passkey/register/verify",
     body: {
       flow_id: (options as { flowId?: string }).flowId,
       credential,
+      device_signals: deviceFields.device_signals,
     },
+    headers: deviceFields.headers,
   });
   return decodeEnvelope(env);
 }
@@ -175,13 +179,16 @@ export async function signInWithPasskey(
 
   const credential = await getCredentialWithCancelHandling(options);
 
+  const deviceFields = deviceSignalsRequestFields(await collectDeviceSignals());
   const env = await http.send<SessionEnvelopeWire>({
     method: "POST",
     path: "/v1/auth/passkey/login/verify",
     body: {
       flow_id: (options as { flowId?: string }).flowId,
       credential,
+      device_signals: deviceFields.device_signals,
     },
+    headers: deviceFields.headers,
   });
   return decodeEnvelope(env);
 }
