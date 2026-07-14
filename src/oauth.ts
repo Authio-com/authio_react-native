@@ -219,16 +219,27 @@ export async function consumeOAuthCallback(
       message: `consumeOAuthCallback: no 'state' param in URL ${url}`,
     });
   }
+  const p = pending.get(state);
+  if (!p) {
+    throw new AuthioError({
+      code: AuthioErrorCode.OAuthInvalidCallback,
+      message: "consumeOAuthCallback: callback state is unknown or already consumed",
+      details: { state },
+    });
+  }
+  // Claim the state before decoding, exchanging, or returning a session.
+  // This makes every callback one-shot even if downstream persistence fails.
+  pending.delete(state);
+
   const error = extractQueryParam(url, "error");
   if (error) {
     const desc = extractQueryParam(url, "error_description") ?? error;
-    const p = pending.get(state);
     const err = new AuthioError({
       code: AuthioErrorCode.OAuthCancelled,
       message: `oauth provider error: ${desc}`,
       details: { error, description: desc },
     });
-    if (p) p.reject(err);
+    p.reject(err);
     throw err;
   }
 
@@ -251,8 +262,7 @@ export async function consumeOAuthCallback(
       active_role: null,
       memberships: null,
     });
-    const p = pending.get(state);
-    if (p) p.resolve(env);
+    p.resolve(env);
     return env;
   }
 
@@ -262,8 +272,7 @@ export async function consumeOAuthCallback(
       code: AuthioErrorCode.OAuthInvalidCallback,
       message: `consumeOAuthCallback: URL missing access_token or code: ${url}`,
     });
-    const p = pending.get(state);
-    if (p) p.reject(err);
+    p.reject(err);
     throw err;
   }
 
@@ -273,8 +282,7 @@ export async function consumeOAuthCallback(
     body: { code, state },
   });
   const env = decodeEnvelope(wire);
-  const p = pending.get(state);
-  if (p) p.resolve(env);
+  p.resolve(env);
   return env;
 }
 

@@ -103,4 +103,40 @@ describe("OAuth start + consume", () => {
       c.consumeOAuthCallback("myapp://auth?access_token=x"),
     ).rejects.toMatchObject({ code: "oauth_invalid_callback" });
   });
+
+  it("rejects a callback whose state was never started", async () => {
+    const c = new AuthioClient({
+      publishableKey: "pk",
+      openURL: vi.fn(async () => undefined),
+      storage: new MemoryStorage(),
+    });
+
+    await expect(
+      c.consumeOAuthCallback(
+        "myapp://auth?state=unknown&access_token=at&session_id=sess&expires_at=2099-01-01T00:00:00Z",
+      ),
+    ).rejects.toMatchObject({ code: "oauth_invalid_callback" });
+  });
+
+  it("consumes state before returning and rejects callback replay", async () => {
+    const c = new AuthioClient({
+      publishableKey: "pk",
+      openURL: vi.fn(async () => undefined),
+      storage: new MemoryStorage(),
+    });
+    const handle = c.startOAuth({
+      provider: "google",
+      redirectUri: "myapp://auth",
+      state: "one-shot",
+    });
+    const callback =
+      "myapp://auth?state=one-shot&access_token=at&session_id=sess&expires_at=2099-01-01T00:00:00Z";
+
+    await c.consumeOAuthCallback(callback);
+    await handle.promise;
+    expect(_pendingCount()).toBe(0);
+    await expect(c.consumeOAuthCallback(callback)).rejects.toMatchObject({
+      code: "oauth_invalid_callback",
+    });
+  });
 });
