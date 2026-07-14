@@ -19,12 +19,17 @@ interface PendingFlow {
   resolve: (env: DecodedEnvelope) => void;
   reject: (err: AuthioError) => void;
   createdAt: number;
+  timer: ReturnType<typeof setTimeout>;
 }
 
 const pending = new Map<string, PendingFlow>();
+export const DEFAULT_OAUTH_TIMEOUT_MS = 5 * 60 * 1000;
 
 /** Reset internal state — test-only. */
 export function __resetOAuthForTesting(): void {
+  for (const flow of pending.values()) {
+    clearTimeout(flow.timer);
+  }
   pending.clear();
 }
 
@@ -137,34 +142,36 @@ export function startOAuth(
     },
   );
 
-  let timer: ReturnType<typeof setTimeout> | null = null;
+  const timeoutMs =
+    args.timeoutMs !== undefined && args.timeoutMs > 0
+      ? args.timeoutMs
+      : DEFAULT_OAUTH_TIMEOUT_MS;
   const promise = new Promise<DecodedEnvelope>((resolve, reject) => {
-    pending.set(state, {
+    const flow: PendingFlow = {
       resolve: (env) => {
-        if (timer) clearTimeout(timer);
+        clearTimeout(flow.timer);
         pending.delete(state);
         resolve(env);
       },
       reject: (err) => {
-        if (timer) clearTimeout(timer);
+        clearTimeout(flow.timer);
         pending.delete(state);
         reject(err);
       },
       createdAt: Date.now(),
-    });
-    if (args.timeoutMs && args.timeoutMs > 0) {
-      timer = setTimeout(() => {
-        const p = pending.get(state);
-        if (p) {
-          p.reject(
+      timer: setTimeout(() => {
+        const current = pending.get(state);
+        if (current) {
+          current.reject(
             new AuthioError({
               code: AuthioErrorCode.OAuthCancelled,
-              message: `OAuth flow timed out after ${args.timeoutMs}ms`,
+              message: `OAuth flow timed out after ${timeoutMs}ms`,
             }),
           );
         }
-      }, args.timeoutMs);
-    }
+      }, timeoutMs),
+    };
+    pending.set(state, flow);
   });
 
   // Kick off the browser open — but don't await it. If it fails, reject

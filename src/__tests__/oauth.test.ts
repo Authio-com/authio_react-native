@@ -1,7 +1,11 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { AuthioClient } from "../client";
 import { MemoryStorage } from "../storage";
-import { __resetOAuthForTesting, _pendingCount } from "../oauth";
+import {
+  __resetOAuthForTesting,
+  _pendingCount,
+  DEFAULT_OAUTH_TIMEOUT_MS,
+} from "../oauth";
 
 beforeEach(() => {
   __resetOAuthForTesting();
@@ -47,6 +51,62 @@ describe("OAuth start + consume", () => {
     expect(() =>
       c.startOAuth({ provider: "google", redirectUri: "myapp://auth" }),
     ).toThrow(/openURL/);
+  });
+
+  it("expires pending flows after the five-minute default", async () => {
+    vi.useFakeTimers();
+    try {
+      const c = new AuthioClient({
+        publishableKey: "pk",
+        apiUrl: "https://api.example.com",
+        openURL: vi.fn(async () => undefined),
+        storage: new MemoryStorage(),
+      });
+      const handle = c.startOAuth({
+        provider: "google",
+        redirectUri: "myapp://auth",
+        state: "default-timeout",
+      });
+
+      expect(_pendingCount()).toBe(1);
+      const rejected = expect(handle.promise).rejects.toMatchObject({
+        code: "oauth_cancelled",
+        message: `OAuth flow timed out after ${DEFAULT_OAUTH_TIMEOUT_MS}ms`,
+      });
+      await vi.advanceTimersByTimeAsync(DEFAULT_OAUTH_TIMEOUT_MS);
+      await rejected;
+      expect(_pendingCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("honors a positive per-call timeout and cleans the pending map", async () => {
+    vi.useFakeTimers();
+    try {
+      const c = new AuthioClient({
+        publishableKey: "pk",
+        openURL: vi.fn(async () => undefined),
+        storage: new MemoryStorage(),
+      });
+      const handle = c.startOAuth({
+        provider: "github",
+        redirectUri: "myapp://auth",
+        state: "custom-timeout",
+        timeoutMs: 2_000,
+      });
+
+      await vi.advanceTimersByTimeAsync(1_999);
+      expect(_pendingCount()).toBe(1);
+      const rejected = expect(handle.promise).rejects.toMatchObject({
+        code: "oauth_cancelled",
+      });
+      await vi.advanceTimersByTimeAsync(1);
+      await rejected;
+      expect(_pendingCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("consumeOAuthCallback with access_token resolves the pending flow", async () => {
