@@ -24,7 +24,7 @@ function loadPlatform(): { OS?: string } | null {
   } catch {
     platformMod = null;
   }
-  return platformMod;
+  return platformMod ?? null;
 }
 
 /** Collect coarse device signals without requiring optional native deps. */
