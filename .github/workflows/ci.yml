@@ -19,4 +19,5 @@ jobs:
       - name: pnpm audit (high+)
         run: pnpm audit --audit-level=high
       - run: pnpm typecheck
+      - run: pnpm test
       - run: pnpm build
